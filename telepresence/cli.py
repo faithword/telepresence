@@ -215,6 +215,15 @@ def parse_args() -> argparse.Namespace:
         )
     )
     parser.add_argument(
+        "--allow-traffic",
+        dest="allow_traffic",
+        action="store_true",
+        help=(
+            "Proxy traffic from kubernetes to local.\n\n"
+            "Only useful with `--swap-deployment` and `--copy-deployment`."
+        )
+    )
+    parser.add_argument(
         "--context",
         default=None,
         help=(
