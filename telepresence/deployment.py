@@ -279,3 +279,157 @@ def swap_deployment_openshift(runner: Runner, args: argparse.Namespace
     )
     apply_json(new_rc_json)
     return deployment_name, run_id, orig_container_json
+
+
+def copy_deployment(runner: Runner,
+                    args: argparse.Namespace) -> Tuple[str, str, Dict]:
+    """
+    Copy out an existing Deployment.
+
+    Native Kubernetes version.
+
+    Returns (Deployment name, unique K8s label, JSON of original container that
+    was swapped out.)
+    """
+    run_id = str(uuid4())
+
+    deployment_name, *container_name = args.copy_deployment.split(":", 1)
+    if container_name:
+        container_name = container_name[0]
+    deployment_json = get_deployment_json(
+        runner,
+        deployment_name,
+        args.context,
+        args.namespace,
+        "deployment",
+    )
+
+    def delete_deployment(deployment_name, check=True):
+        out = runner.kubectl(
+            args.context, args.namespace,
+            ["delete", "deployment", deployment_name]
+        )
+        if check:
+            runner.check_call(out)
+
+    atexit.register(delete_deployment, deployment_name)
+
+    deployment_name = "{}-copy".format(deployment_name)
+
+    def apply_json(json_config):
+        # apply without delete will merge in unexpected ways, e.g. missing
+        # container attributes in the pod spec will not be removed. so we
+        # delete and then recreate.
+
+        delete_deployment(deployment_name, False)
+
+        runner.check_kubectl(
+            args.context,
+            args.namespace, ["apply", "-f", "-"],
+            input=json.dumps(json_config).encode("utf-8")
+        )
+
+    # If no container name was given, just use the first one:
+    if not container_name:
+        container_name = deployment_json["spec"]["template"]["spec"][
+            "containers"
+        ][0]["name"]
+
+    # If we're on local VM we need to use different nameserver to
+    # prevent infinite loops caused by sshuttle.
+    new_deployment_json, orig_container_json = new_copied_deployment(
+        deployment_json,
+        container_name,
+        run_id,
+        TELEPRESENCE_REMOTE_IMAGE,
+        args.method == "vpn-tcp" and args.in_local_vm,
+        args.needs_root,
+        deployment_name
+    )
+    apply_json(new_deployment_json)
+    return deployment_name, run_id, orig_container_json
+
+
+def new_copied_deployment(
+    old_deployment: Dict,
+    container_to_update: str,
+    run_id: str,
+    telepresence_image: str,
+    add_custom_nameserver: bool,
+    as_root: bool,
+    copied_deployment_name: str,
+) -> Tuple[Dict, Dict]:
+    new_deployment, old_container = new_swapped_deployment(old_deployment, container_to_update, run_id, telepresence_image, add_custom_nameserver, as_root)
+
+    new_deployment["metadata"]["name"] = copied_deployment_name
+    return new_deployment, old_container
+
+
+def copy_deployment_openshift(runner: Runner, args: argparse.Namespace
+                              ) -> Tuple[str, str, Dict]:
+    """
+    Swap out an existing DeploymentConfig.
+
+    Returns (Deployment name, unique K8s label, JSON of original container that
+    was swapped out.)
+
+    In practice OpenShift doesn't seem to do the right thing when a
+    DeploymentConfig is updated. In particular, we need to disable the image
+    trigger so that we can use the new image, but the replicationcontroller
+    then continues to deploy the existing image.
+
+    So instead we use a different approach than for Kubernetes, replacing the
+    current ReplicationController with one that uses the Telepresence image,
+    then restores it. We delete the pods to force the RC to do its thing.
+    """
+    run_id = str(uuid4())
+    deployment_name, *container_name = args.copy_deployment.split(":", 1)
+    if container_name:
+        container_name = container_name[0]
+    rcs = runner.get_kubectl(
+        args.context, args.namespace, [
+            "get", "rc", "-o", "name", "--selector",
+            "openshift.io/deployment-config.name=" + deployment_name
+        ]
+    )
+    rc_name = sorted(
+        rcs.split(), key=lambda n: int(n.split("-")[-1])
+    )[0].split("/", 1)[1]
+    rc_json = json.loads(
+        runner.get_kubectl(
+            args.context,
+            args.namespace, ["get", "rc", "-o", "json", "--export", rc_name],
+            stderr=STDOUT
+        )
+    )
+
+    def apply_json(json_config):
+        runner.check_kubectl(
+            args.context,
+            args.namespace, ["apply", "-f", "-"],
+            input=json.dumps(json_config).encode("utf-8")
+        )
+        # Now that we've updated the replication controller, delete pods to
+        # make sure changes get applied:
+        runner.check_kubectl(
+            args.context, args.namespace,
+            ["delete", "pod", "--selector", "deployment=" + rc_name]
+        )
+
+    atexit.register(apply_json, rc_json)
+
+    # If no container name was given, just use the first one:
+    if not container_name:
+        container_name = rc_json["spec"]["template"]["spec"]["containers"
+                                                             ][0]["name"]
+
+    new_rc_json, orig_container_json = new_copied_deployment(
+        rc_json,
+        container_name,
+        run_id,
+        TELEPRESENCE_REMOTE_IMAGE,
+        args.method == "vpn-tcp" and args.in_local_vm,
+        False,
+    )
+    apply_json(new_rc_json)
+    return deployment_name, run_id, orig_container_json

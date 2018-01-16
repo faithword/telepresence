@@ -18,7 +18,7 @@ from time import sleep, time
 from telepresence.cleanup import Subprocesses
 from telepresence.cli import parse_args, handle_unexpected_errors
 from telepresence.deployment import create_new_deployment, swap_deployment, \
-    swap_deployment_openshift
+    swap_deployment_openshift, copy_deployment, copy_deployment_openshift
 from telepresence.container import MAC_LOOPBACK_IP, run_docker_command
 from telepresence.local import run_local_command
 from telepresence.remote import RemoteInfo, get_remote_info
@@ -278,6 +278,22 @@ def start_proxy(runner: Runner, args: argparse.Namespace
             if p["protocol"] == "TCP"
         ])
 
+    if args.copy_deployment is not None:
+        # This implies --copy-deployment
+        if runner.kubectl_cmd == "oc":
+            args.deployment, run_id, container_json = (
+                copy_deployment_openshift(runner, args)
+            )
+        else:
+            args.deployment, run_id, container_json = copy_deployment(
+                runner, args
+            )
+        args.expose.merge_automatic_ports([
+            p["containerPort"] for p in container_json.get("ports", [])
+            if p["protocol"] == "TCP"
+        ])
+
+
     deployment_type = "deployment"
     if runner.kubectl_cmd == "oc":
         # OpenShift Origin uses DeploymentConfig instead, but for swapping we
@@ -352,6 +368,8 @@ def main():
             operation = "new_deployment"
         elif args.swap_deployment:
             operation = "swap_deployment"
+        elif args.copy_deployment:
+            operation = "copy_deployment"
         else:
             operation = "bad_args"
         scouted = call_scout(
@@ -434,7 +452,7 @@ def main():
             runner.write("Looks like we're in a local VM, e.g. minikube.\n")
         if (
                 args.in_local_vm and args.method == "vpn-tcp" and
-                args.new_deployment is None and args.swap_deployment is None
+                args.new_deployment is None and args.swap_deployment is None and args.copy_deployment is None
         ):
             raise SystemExit(
                 "vpn-tcp method doesn't work with minikube/minishift when"

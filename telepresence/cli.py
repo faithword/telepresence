@@ -191,6 +191,20 @@ def parse_args() -> argparse.Namespace:
             " to use."
         )
     )
+
+    group_deployment.add_argument(
+        "--copy-deployment",
+        "-c",
+        dest="copy_deployment",
+        metavar="DEPLOYMENT_NAME[:CONTAINER]",
+        help=(
+            "Copy out an existing deployment with the Telepresence proxy, "
+            "delete on exit. If there are multiple containers in the pod "
+            "then add the optional container name to indicate which container"
+            " to use."
+        )
+    )
+
     group_deployment.add_argument(
         "--deployment",
         "-d",
@@ -284,6 +298,7 @@ def parse_args() -> argparse.Namespace:
             args.method = "vpn-tcp"
     if args.deployment is None and args.new_deployment is None and (
         args.swap_deployment is None
+        and args.copy_deployment is None
     ):
         args.new_deployment = random_name()
 
