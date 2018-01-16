@@ -266,7 +266,7 @@ def start_proxy(runner: Runner, args: argparse.Namespace
     if args.swap_deployment is not None:
         # This implies --swap-deployment
         args.copy_deployment = args.swap_deployment
-        args.allow_traffic = True
+        args.forward_traffic = True
         zero_original = True
         
 
@@ -280,7 +280,7 @@ def start_proxy(runner: Runner, args: argparse.Namespace
             args.deployment, run_id, container_json = copy_deployment(
                 runner, args, zero_original
             )
-        if args.allow_traffic:
+        if args.forward_traffic:
             args.expose.merge_automatic_ports([
                 p["containerPort"] for p in container_json.get("ports", [])
                 if p["protocol"] == "TCP"

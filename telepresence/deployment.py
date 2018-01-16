@@ -137,7 +137,7 @@ def copy_deployment(runner: Runner,
         TELEPRESENCE_REMOTE_IMAGE,
         args.method == "vpn-tcp" and args.in_local_vm,
         args.needs_root,
-        args.allow_traffic,
+        args.forward_traffic,
         deployment_copy_name
     )
     apply_json(new_deployment_json)
@@ -156,7 +156,7 @@ def new_copied_deployment(
     telepresence_image: str,
     add_custom_nameserver: bool,
     as_root: bool,
-    allow_traffic: bool,
+    forward_traffic: bool,
     copied_deployment_name: str,
 ) -> Tuple[Dict, Dict]:
     """
@@ -179,7 +179,7 @@ def new_copied_deployment(
     new_deployment_json = deepcopy(old_deployment)
     new_deployment_json["metadata"]["name"] = copied_deployment_name
     new_deployment_json["spec"]["replicas"] = 1
-    if not allow_traffic:
+    if not forward_traffic:
         new_deployment_json["metadata"]["labels"] = {}
         new_deployment_json["spec"]["template"]["metadata"]["labels"] = {}
         new_deployment_json["spec"]["selector"] = None

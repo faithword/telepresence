@@ -188,7 +188,8 @@ def parse_args() -> argparse.Namespace:
             "Swap out an existing deployment with the Telepresence proxy, "
             "swap back on exit. If there are multiple containers in the pod "
             "then add the optional container name to indicate which container"
-            " to use."
+            " to use.\n"
+            "This automatically sets --forward-traffic to true"
         )
     )
 
@@ -215,12 +216,12 @@ def parse_args() -> argparse.Namespace:
         )
     )
     parser.add_argument(
-        "--allow-traffic",
-        dest="allow_traffic",
+        "--forward-traffic",
+        dest="forward_traffic",
         action="store_true",
         help=(
             "Proxy traffic from kubernetes to local.\n\n"
-            "Only useful with `--swap-deployment` and `--copy-deployment`."
+            "Only useful with `--copy-deployment`."
         )
     )
     parser.add_argument(
