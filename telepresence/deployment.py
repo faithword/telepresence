@@ -303,6 +303,7 @@ def copy_deployment(runner: Runner,
         args.namespace,
         "deployment",
     )
+    deployment_name = "{}-copy".format(deployment_name)
 
     def delete_deployment(deployment_name, check=True):
         out = runner.kubectl(
@@ -312,10 +313,9 @@ def copy_deployment(runner: Runner,
         if check:
             runner.check_call(out)
 
+
+
     atexit.register(delete_deployment, deployment_name)
-
-    deployment_name = "{}-copy".format(deployment_name)
-
     def apply_json(json_config):
         # apply without delete will merge in unexpected ways, e.g. missing
         # container attributes in the pod spec will not be removed. so we
