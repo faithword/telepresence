@@ -91,7 +91,8 @@ def copy_deployment(runner: Runner,
         args.namespace,
         "deployment",
     )
-    deployment_copy_name = "{}-copy".format(deployment_name)
+    # Todo: check if length of deployment name would be a problem?
+    deployment_copy_name = "{}-{}".format(deployment_name, run_id)
 
     def delete_deployment(check=True):
         out = runner.kubectl(
