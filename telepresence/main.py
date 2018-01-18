@@ -265,8 +265,6 @@ def start_proxy(runner: Runner, args: argparse.Namespace
     zero_original = False
     if args.swap_deployment is not None:
         # This implies --swap-deployment
-        args.copy_deployment = args.swap_deployment
-        args.forward_traffic = True
         zero_original = True
         
 

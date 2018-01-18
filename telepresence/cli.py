@@ -312,6 +312,10 @@ def parse_args() -> argparse.Namespace:
     ):
         args.new_deployment = random_name()
 
+    if args.swap_deployment is not None:
+        args.copy_deployment = args.swap_deployment
+        args.forward_traffic = True
+
     if args.method == "container" and args.docker_run is None:
         raise SystemExit(
             "'--docker-run' is required when using '--method container'."
