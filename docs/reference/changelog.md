@@ -17,6 +17,8 @@ Bug fixes:
 
 Misc:
 
+* The Kubernetes volume is now found beneath /run instead of /var/run (owing to a switch from alpine:3.6 to alpine:3.7).
+  ([#520](https://github.com/datawire/telepresence/pull/520))
 * A new end-to-end test suite setup will help us reduce the cycle time associated with testing Telepresence.
   ([#429](https://github.com/datawire/telepresence/pull/429))
   ([#463](https://github.com/datawire/telepresence/pull/463))
